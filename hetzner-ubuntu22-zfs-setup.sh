@@ -497,32 +497,25 @@ echo "======= partitioning the disk =========="
 
 echo "======= create zfs pools and datasets =========="
 
-encryption_options=()
-rpool_disks_partitions=()
-bpool_disks_partitions=()
+  encryption_options=()
+  rpool_disks_partitions=()
+  bpool_disks_partitions=()
 
-if [[ $v_encrypt_rpool == "1" ]]; then
-  encryption_options=(-O "encryption=aes-256-gcm" -O "keylocation=prompt" -O "keyformat=passphrase")
-fi
+  if [[ $v_encrypt_rpool == "1" ]]; then
+    encryption_options=(-O "encryption=aes-256-gcm" -O "keylocation=prompt" -O "keyformat=passphrase")
+  fi
 
-for selected_disk in "${v_selected_disks[@]}"; do
-  rpool_disks_partitions+=("${selected_disk}-part3")
-  bpool_disks_partitions+=("${selected_disk}-part2")
-done
+  for selected_disk in "${v_selected_disks[@]}"; do
+    rpool_disks_partitions+=("${selected_disk}-part3")
+    bpool_disks_partitions+=("${selected_disk}-part2")
+  done
 
-if [[ ${#v_selected_disks[@]} -gt 1 ]]; then
-  pools_mirror_option="mirror"
-else
-  pools_mirror_option=""
-fi
+  if [[ ${#v_selected_disks[@]} -gt 1 ]]; then
+    pools_mirror_option=mirror
+  else
+    pools_mirror_option=
+  fi
 
-# Ensure that rpool_disks_partitions and bpool_disks_partitions are not empty
-if [[ ${#rpool_disks_partitions[@]} -eq 0 || ${#bpool_disks_partitions[@]} -eq 0 ]]; then
-  echo "Error: No disk partitions found for ZFS pool creation."
-  exit 1
-fi
-
-# Create the boot pool (bpool)
 # shellcheck disable=SC2086
 zpool create \
   $v_bpool_tweaks -O canmount=off -O devices=off \
@@ -530,18 +523,13 @@ zpool create \
   -O mountpoint=/boot -R $c_zfs_mount_dir -f \
   $v_bpool_name $pools_mirror_option "${bpool_disks_partitions[@]}"
 
-# Create the root pool (rpool)
 # shellcheck disable=SC2086
 echo -n "$v_passphrase" | zpool create \
   $v_rpool_tweaks \
   -o cachefile=/etc/zpool.cache \
-  -o compatibility=grub2 \  
   "${encryption_options[@]}" \
   -O mountpoint=/ -R $c_zfs_mount_dir -f \
   $v_rpool_name $pools_mirror_option "${rpool_disks_partitions[@]}"
-
-# Verify that pools were created successfully
-zpool status
 
 zfs create -o canmount=off -o mountpoint=none "$v_rpool_name/ROOT"
 zfs create -o canmount=off -o mountpoint=none "$v_bpool_name/BOOT"
