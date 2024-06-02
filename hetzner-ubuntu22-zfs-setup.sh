@@ -497,40 +497,40 @@ echo "======= partitioning the disk =========="
 
 echo "======= create zfs pools and datasets =========="
 
-  encryption_options=()
-  rpool_disks_partitions=()
-  bpool_disks_partitions=()
+encryption_options=()
+rpool_disks_partitions=()
+bpool_disks_partitions=()
 
-  if [[ $v_encrypt_rpool == "1" ]]; then
-    encryption_options=(-O "encryption=aes-256-gcm" -O "keylocation=prompt" -O "keyformat=passphrase")
-  fi
+if [[ $v_encrypt_rpool == "1" ]]; then
+  encryption_options=(-O "encryption=aes-256-gcm" -O "keylocation=prompt" -O "keyformat=passphrase")
+fi
 
-  for selected_disk in "${v_selected_disks[@]}"; do
-    rpool_disks_partitions+=("${selected_disk}-part3")
-    bpool_disks_partitions+=("${selected_disk}-part2")
-  done
+for selected_disk in "${v_selected_disks[@]}"; do
+  rpool_disks_partitions+=("${selected_disk}-part3")
+  bpool_disks_partitions+=("${selected_disk}-part2")
+done
 
-  if [[ ${#v_selected_disks[@]} -gt 1 ]]; then
-    pools_mirror_option=mirror
-  else
-    pools_mirror_option=
-  fi
+if [[ ${#v_selected_disks[@]} -gt 1 ]]; then
+  pools_mirror_option="mirror"
+else
+  pools_mirror_option=""
+fi
 
 # shellcheck disable=SC2086
 zpool create \
   $v_bpool_tweaks -O canmount=off -O devices=off \
   -o cachefile=/etc/zpool.cache \
-  -o compatibility=grub2 \  
-  -O mountpoint=/boot -R $c_zfs_mount_dir -f \
-  $v_bpool_name $pools_mirror_option "${bpool_disks_partitions[@]}"
+  -o compatibility=grub2 \
+  -O mountpoint=/boot -R "$c_zfs_mount_dir" -f \
+  "$v_bpool_name" $pools_mirror_option "${bpool_disks_partitions[@]}"
 
 # shellcheck disable=SC2086
 echo -n "$v_passphrase" | zpool create \
   $v_rpool_tweaks \
   -o cachefile=/etc/zpool.cache \
   "${encryption_options[@]}" \
-  -O mountpoint=/ -R $c_zfs_mount_dir -f \
-  $v_rpool_name $pools_mirror_option "${rpool_disks_partitions[@]}"
+  -O mountpoint=/ -R "$c_zfs_mount_dir" -f \
+  "$v_rpool_name" $pools_mirror_option "${rpool_disks_partitions[@]}"
 
 zfs create -o canmount=off -o mountpoint=none "$v_rpool_name/ROOT"
 zfs create -o canmount=off -o mountpoint=none "$v_bpool_name/BOOT"
@@ -541,22 +541,22 @@ zfs mount "$v_rpool_name/ROOT/ubuntu"
 zfs create -o canmount=noauto -o mountpoint=/boot "$v_bpool_name/BOOT/ubuntu"
 zfs mount "$v_bpool_name/BOOT/ubuntu"
 
-zfs create                                 "$v_rpool_name/home"
-#zfs create -o mountpoint=/root             "$v_rpool_name/home/root"
-zfs create -o canmount=off                 "$v_rpool_name/var"
-zfs create                                 "$v_rpool_name/var/log"
-zfs create                                 "$v_rpool_name/var/spool"
+zfs create "$v_rpool_name/home"
+# zfs create -o mountpoint=/root "$v_rpool_name/home/root"
+zfs create -o canmount=off "$v_rpool_name/var"
+zfs create "$v_rpool_name/var/log"
+zfs create "$v_rpool_name/var/spool"
 
-zfs create -o com.sun:auto-snapshot=false  "$v_rpool_name/var/cache"
-zfs create -o com.sun:auto-snapshot=false  "$v_rpool_name/var/tmp"
+zfs create -o com.sun:auto-snapshot=false "$v_rpool_name/var/cache"
+zfs create -o com.sun:auto-snapshot=false "$v_rpool_name/var/tmp"
 chmod 1777 "$c_zfs_mount_dir/var/tmp"
 
-zfs create                                 "$v_rpool_name/srv"
+zfs create "$v_rpool_name/srv"
 
-zfs create -o canmount=off                 "$v_rpool_name/usr"
-zfs create                                 "$v_rpool_name/usr/local"
+zfs create -o canmount=off "$v_rpool_name/usr"
+zfs create "$v_rpool_name/usr/local"
 
-zfs create                                 "$v_rpool_name/var/mail"
+zfs create "$v_rpool_name/var/mail"
 
 zfs create -o com.sun:auto-snapshot=false -o canmount=on -o mountpoint=/tmp "$v_rpool_name/tmp"
 chmod 1777 "$c_zfs_mount_dir/tmp"
